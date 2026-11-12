@@ -1,0 +1,11 @@
+InfinityFree / cPanel-এ ৩ ধাপ:
+
+1) এই ফোল্ডারের সব ফাইল (লুকানো .htaccess সহ) htdocs-এ আপলোড করুন।
+2) ব্রাউজারে https://আপনার-সাইট/  খুলুন  →  ইনস্টলার নিজে থেকেই আসবে।
+3) ইনস্টলারে ডেটাবেস বেছে নিন:
+     • MySQL (InfinityFree-এ সুপারিশকৃত) — control panel → MySQL Databases থেকে
+       host, database name, username, password বসান।
+     • SQLite — যদি হোস্টিং-এ pdo_sqlite থাকে (InfinityFree-এ সাধারণত থাকে না)।
+   তারপর অ্যাডমিন অ্যাকাউন্ট তৈরি করুন — ব্যস, অ্যাপ চালু।
+
+সমস্যা হলে: /?p=install খুলুন (সেটআপ উইজার্ড), অথবা /?p=setup (PHP/PDO/পারমিশন ডায়াগনস্টিক)।
