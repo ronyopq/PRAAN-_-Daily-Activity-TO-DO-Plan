@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { categories, plans, sessions, tasks, users, workLogs, type PublicUser } from "@/db/schema";
+import { db, databaseUrlHint } from "@/db";
+import { ensureSchema, isMissingSchemaError } from "@/db/bootstrap";
+import { DB_SCHEMA, categories, plans, sessions, tasks, users, workLogs, type PublicUser } from "@/db/schema";
 import { hashPassword, startSession, toPublicUser, userFromRequest, verifyPassword } from "@/lib/auth";
 import {
   addDays,
@@ -813,12 +814,33 @@ async function databaseInfo() {
 
 /* ------------------------------- dispatcher ------------------------------- */
 
+/**
+ * Bootstrap the schema once per process and translate low level driver errors
+ * into messages a normal user can act on.
+ */
+async function ensureSetup() {
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error("[db] schema bootstrap failed:", err);
+    throw new ApiError(
+      `ডেটাবেস প্রস্তুত করা যায়নি (${databaseUrlHint(err)})`,
+      503,
+    );
+  }
+}
+
 export type ApiResult = { data?: unknown; token?: string; maxAge?: number; logout?: boolean };
 
 export async function handleApi(req: Request, segments: string[], url: URL): Promise<ApiResult> {
   const [root, second] = segments;
   const method = req.method ?? "GET";
   const body: Body = method === "GET" || method === "DELETE" ? {} : await readBody(req);
+
+  // Make sure this app's schema/tables exist before touching them. Without
+  // this, a fresh Supabase project answered login/register with a raw
+  // `Failed query: select ... from "users"` driver error.
+  await ensureSetup();
 
   // public endpoints
   if (root === "auth") {

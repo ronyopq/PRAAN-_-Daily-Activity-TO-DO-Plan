@@ -1,8 +1,9 @@
 import {
   boolean,
   date,
+  index,
   integer,
-  pgTable,
+  pgSchema,
   serial,
   text,
   timestamp,
@@ -10,9 +11,24 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+/**
+ * Every table of this app lives in its own PostgreSQL schema — by default
+ * `praantodo` — and every query is emitted fully qualified
+ * (`"praantodo"."users"`). This matters on Supabase: the project's `public`
+ * schema is shared with other apps, and a pooled (pgbouncer) connection may
+ * not keep the role's `search_path`, so unqualified `"users"` can resolve to
+ * the wrong table or to nothing at all. Qualifying the names removes that
+ * whole class of "relation does not exist" / "column does not exist" failures.
+ *
+ * Override with DB_SCHEMA once you want another schema name.
+ */
+export const DB_SCHEMA = (process.env.DB_SCHEMA ?? "").trim() || "praantodo";
+
+export const appSchema = pgSchema(DB_SCHEMA);
+
 /* ---------------------------------- users --------------------------------- */
 
-export const users = pgTable("users", {
+export const users = appSchema.table("users", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 80 }).notNull(),
   email: varchar("email", { length: 190 }).notNull().unique(),
@@ -26,7 +42,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const sessions = pgTable(
+export const sessions = appSchema.table(
   "sessions",
   {
     id: serial("id").primaryKey(),
@@ -42,7 +58,7 @@ export const sessions = pgTable(
 
 /* -------------------------------- categories ------------------------------- */
 
-export const categories = pgTable(
+export const categories = appSchema.table(
   "categories",
   {
     id: serial("id").primaryKey(),
@@ -58,7 +74,7 @@ export const categories = pgTable(
 
 /* -------------------------- monthly work plan (plans) ---------------------- */
 
-export const plans = pgTable("plans", {
+export const plans = appSchema.table("plans", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
@@ -84,7 +100,7 @@ export const plans = pgTable("plans", {
 
 /* ---------------------------------- tasks ---------------------------------- */
 
-export const tasks = pgTable(
+export const tasks = appSchema.table(
   "tasks",
   {
     id: serial("id").primaryKey(),
@@ -114,7 +130,7 @@ export const tasks = pgTable(
 
 /* ------------------------- daily work log (journal) ------------------------ */
 
-export const workLogs = pgTable("work_logs", {
+export const workLogs = appSchema.table("work_logs", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
