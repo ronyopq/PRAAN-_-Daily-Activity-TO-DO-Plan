@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { databaseUrlHint } from "@/db";
 import { handleApi } from "@/lib/api";
 import { SESSION_COOKIE } from "@/lib/auth";
 
@@ -25,10 +26,31 @@ async function run(req: Request, ctx: Ctx) {
     }
     return res;
   } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err ?? "");
+
+    // Drizzle wraps driver failures as `Failed query: select ... params: ...`.
+    // Showing that to the user was the confusing part of the reported bug:
+    // it looks like a bug in the app instead of "the database is not reachable".
+    const isDriverError = /^Failed query:/i.test(raw) || Boolean((err as { code?: string } | null)?.code);
+    if (isDriverError) {
+      console.error("[api] database error:", raw);
+    }
+
     const status =
-      err && typeof err === "object" && "status" in err ? Number((err as { status?: unknown }).status) || 400 : 400;
-    const message =
-      err instanceof Error && err.message !== "UNAUTHENTICATED" ? err.message : "অনুরোধটি সম্পন্ন করা যায়নি";
+      err && typeof err === "object" && "status" in err
+        ? Number((err as { status?: unknown }).status) || 400
+        : isDriverError
+          ? 503
+          : 400;
+
+    let message: string;
+    if (isDriverError) {
+      message = `ডেটাবেসে সংযোগ করা যায়নি — ${databaseUrlHint(err)}`;
+    } else if (err instanceof Error && err.message !== "UNAUTHENTICATED") {
+      message = err.message;
+    } else {
+      message = "অনুরোধটি সম্পন্ন করা যায়নি";
+    }
     return NextResponse.json({ error: message }, { status });
   }
 }

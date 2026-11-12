@@ -31,11 +31,15 @@ function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [dbProblem, setDbProblem] = useState<string | null>(null);
 
   useEffect(() => {
     void api<{ needsSetup: boolean }>("auth/status")
-      .then((res) => setNeedsSetup(res.needsSetup))
-      .catch(() => setNeedsSetup(false));
+      .then((res) => {
+        setNeedsSetup(res.needsSetup);
+        setDbProblem(null);
+      })
+      .catch((err) => setDbProblem(err instanceof Error ? err.message : "ডেটাবেসে সংযোগ করা যায়নি"));
   }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -82,6 +86,15 @@ function LoginScreen() {
                   এখানে খুলুন
                 </Link>
                 ।
+              </span>
+            </div>
+          ) : null}
+
+          {dbProblem && !error ? (
+            <div className="lte-alert lte-alert-danger mt-3 flex items-start gap-2">
+              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
+              <span className="text-[12.5px] leading-relaxed">
+                <b>ডেটাবেসে সংযোগ হচ্ছে না।</b> {dbProblem}
               </span>
             </div>
           ) : null}

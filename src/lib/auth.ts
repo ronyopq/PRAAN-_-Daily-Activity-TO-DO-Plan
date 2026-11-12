@@ -2,6 +2,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypt
 import { cookies } from "next/headers";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
+import { ensureSchema } from "@/db/bootstrap";
 import { sessions, users, type PublicUser, type User } from "@/db/schema";
 
 export const SESSION_COOKIE = "kh_sid";
@@ -54,6 +55,9 @@ export async function getSessionUser(): Promise<PublicUser | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+  // Server components can render before any API call, so make sure the tables
+  // exist here too — otherwise the first page load after a deploy fails.
+  await ensureSchema();
   const [row] = await db
     .select({ session: sessions, user: users })
     .from(sessions)
@@ -79,6 +83,7 @@ export async function userFromRequest(req: Request): Promise<PublicUser | null> 
     .find(([key]) => (key ?? "").trim() === SESSION_COOKIE);
   const token = match?.[1]?.trim();
   if (!token) return null;
+  await ensureSchema();
   const [row] = await db
     .select({ session: sessions, user: users })
     .from(sessions)
